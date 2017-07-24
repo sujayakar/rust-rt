@@ -1,0 +1,8 @@
+[package]
+name = "contour"
+version = "0.1.0"
+authors = ["Sujay Jayakar <sujayakar@dropbox.com>"]
+
+[dependencies]
+contour-derive = { path = "../contour-derive" }
+syn = "0.11.11"
