@@ -24,13 +24,13 @@ impl ToTokens for TupleField {
     }
 }
 
-#[proc_macro_derive(Chartable)]
-pub fn chartable(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Introspectable)]
+pub fn introspectable(input: TokenStream) -> TokenStream {
     let s = input.to_string();
     let ast = syn::parse_derive_input(&s).unwrap();
     let name = &ast.ident;
     let (impl_g, ty_g, where_g) = ast.generics.split_for_impl();
-    let children = match ast.body {
+    let chart_children = match ast.body {
         Body::Struct(VariantData::Struct(ref fields)) => fields.iter()
             .map(|f| {let ty = &f.ty; quote!({#ty::chart(map);})})
             .collect(),
@@ -52,26 +52,7 @@ pub fn chartable(input: TokenStream) -> TokenStream {
                 .collect()
         },
     };
-    let gen = quote! {
-        impl #impl_g Chartable for #name #ty_g #where_g {
-            fn chart<CM: ContourMap>(map: &CM) {
-                let contour = #name #ty_g ::contour();
-                if map.register(contour) {
-                    return;
-                }
-                #(#children)*
-            }
-        }
-    };
-    gen.parse().unwrap()
-}
 
-#[proc_macro_derive(HasContour)]
-pub fn has_contour(input: TokenStream) -> TokenStream {
-    let s = input.to_string();
-    let ast = syn::parse_derive_input(&s).unwrap();
-    let name = &ast.ident;
-    let (impl_g, ty_g, where_g) = ast.generics.split_for_impl();
     let gen = match ast.body {
         Body::Struct(VariantData::Struct(ref fields)) => {
             let fields: Vec<_> = fields.iter()
@@ -93,7 +74,15 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                 })
                 .collect();
             quote! {
-                impl #impl_g HasContour for #name #ty_g #where_g {
+                impl #impl_g Introspectable for #name #ty_g #where_g {
+                    fn chart<CM: ContourMap>(map: &CM) {
+                        let contour = #name #ty_g ::contour();
+                        if map.register(contour) {
+                            return;
+                        }
+                        #(#chart_children)*
+                    }
+
                     fn contour() -> Contour {
                         Contour::Struct {
                             name: stringify!(#name),
@@ -126,7 +115,15 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                 })
                 .collect();
             quote! {
-                impl #impl_g HasContour for #name #ty_g #where_g {
+                impl #impl_g Introspectable for #name #ty_g #where_g {
+                    fn chart<CM: ContourMap>(map: &CM) {
+                        let contour = #name #ty_g ::contour();
+                        if map.register(contour) {
+                            return;
+                        }
+                        #(#chart_children)*
+                    }
+
                     fn contour() -> Contour {
                         Contour::Tuple {
                             name: stringify!(#name),
@@ -140,7 +137,15 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
         },
         Body::Struct(VariantData::Unit) => {
             quote! {
-                impl HasContour for #name {
+                impl Introspectable for #name {
+                    fn chart<CM: ContourMap>(map: &CM) {
+                        let contour = #name #ty_g ::contour();
+                        if map.register(contour) {
+                            return;
+                        }
+                        #(#chart_children)*
+                    }
+
                     fn contour() -> Contour {
                         Contour::Unit {
                             name: stringify!(#name),
@@ -265,7 +270,15 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                     let s = _self as *const #name #ty_g;
                     match *s { #(#enum_variants),* }
                 }
-                impl #impl_g HasContour for #name #ty_g #where_g {
+                impl #impl_g Introspectable for #name #ty_g #where_g {
+                    fn chart<CM: ContourMap>(map: &CM) {
+                        let contour = #name #ty_g ::contour();
+                        if map.register(contour) {
+                            return;
+                        }
+                        #(#chart_children)*
+                    }
+
                     fn contour() -> Contour {
                         Contour::Enum {
                             name: stringify!(#name),
@@ -279,6 +292,7 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
             }
         },
     };
+
 
     gen.parse().unwrap()
 }

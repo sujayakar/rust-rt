@@ -6,10 +6,9 @@ extern crate py_contour;
 extern crate rustyline;
 
 use contour::{
-    Chartable,
     Contour,
     ContourMap,
-    HasContour,
+    Introspectable,
     StructField,
 };
 use py_contour::PythonManager;
@@ -18,7 +17,7 @@ use cpython::{
     PyDict,
 };
 
-#[derive(Chartable, HasContour)]
+#[derive(Introspectable)]
 struct TestStruct {
     a: usize,
     b: usize,

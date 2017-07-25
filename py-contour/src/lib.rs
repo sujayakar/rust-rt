@@ -58,6 +58,7 @@ impl PythonManager {
         )
     }
 
+
     pub fn analyze(&self,
                    py: Python,
                    type_id: TypeId,
@@ -69,9 +70,15 @@ impl PythonManager {
         assert_eq!(gen, inner.generation);
 
         let contour: Contour = inner.map.get(&type_id).unwrap().clone();
+
+        fn to_py_object<T: Copy + ToPyObject>(py: Python, ptr: *const u8) -> PyObject {
+            let val = unsafe {*(ptr as *const T)};
+            val.to_py_object(py).into_object()
+        }
+
         match contour {
             Contour::Struct {..} => {
-                let obj = ContourLayer::create_instance(
+                let obj = Struct::create_instance(
                     py,
                     contour.clone(),
                     self.clone(),
@@ -80,13 +87,37 @@ impl PythonManager {
                 ).unwrap();
                 obj.into_object()
             },
-            Contour::Primitive { variant: Primitive::usize, .. } => {
-                let val = unsafe {*(ptr as *const usize)};
-                val.to_py_object(py).into_object()
-            },
-            Contour::Primitive { variant: Primitive::bool, .. } => {
-                let val = unsafe {*(ptr as *const bool)};
-                val.to_py_object(py).into_object()
+
+            Contour::Primitive { variant: Primitive::u8, .. } =>
+                to_py_object::<u8>(py, ptr),
+            Contour::Primitive { variant: Primitive::u16, .. } =>
+                to_py_object::<u16>(py, ptr),
+            Contour::Primitive { variant: Primitive::u32, .. } =>
+                to_py_object::<u32>(py, ptr),
+            Contour::Primitive { variant: Primitive::u64, .. } =>
+                to_py_object::<u64>(py, ptr),
+            Contour::Primitive { variant: Primitive::usize, .. } =>
+                to_py_object::<usize>(py, ptr),
+            Contour::Primitive { variant: Primitive::i8, .. } =>
+                to_py_object::<i8>(py, ptr),
+            Contour::Primitive { variant: Primitive::i16, .. } =>
+                to_py_object::<i16>(py, ptr),
+            Contour::Primitive { variant: Primitive::i32, .. } =>
+                to_py_object::<i32>(py, ptr),
+            Contour::Primitive { variant: Primitive::i64, .. } =>
+                to_py_object::<i64>(py, ptr),
+            Contour::Primitive { variant: Primitive::f32, .. } =>
+                to_py_object::<f32>(py, ptr),
+            Contour::Primitive { variant: Primitive::f64, .. } =>
+                to_py_object::<f64>(py, ptr),
+            Contour::Primitive { variant: Primitive::isize, .. } =>
+                to_py_object::<isize>(py, ptr),
+            Contour::Primitive { variant: Primitive::bool, .. } =>
+                to_py_object::<bool>(py, ptr),
+            Contour::Primitive { variant: Primitive::char, .. } => {
+                let val = unsafe {*(ptr as *const char)};
+                let s = format!("{}", val);
+                PyString::new(py, &s).into_object()
             },
             _ => unimplemented!(),
         }
@@ -114,7 +145,7 @@ struct Inner {
     generation: usize,
 }
 
-py_class!(class ContourLayer |py| {
+py_class!(class Struct |py| {
     data contour: Contour;
     data manager: PythonManager;
     data generation: usize;

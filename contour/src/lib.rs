@@ -58,7 +58,7 @@ pub enum Primitive {
 
 macro_rules! prim_impl {
     ($t:ty, $n:ident) => {
-        impl HasContour for $t {
+        impl Introspectable for $t {
             fn contour() -> Contour {
                 Contour::Primitive {
                     name: stringify!($t),
@@ -67,9 +67,7 @@ macro_rules! prim_impl {
                     variant: Primitive::$n,
                 }
             }
-        }
 
-        impl Chartable for $t {
             fn chart<CM: ContourMap>(map: &CM) {
                 map.register(Self::contour());
             }
@@ -139,20 +137,19 @@ pub enum VariantFields {
     Tuple(Vec<TupleField>),
     Unit,
 }
-pub trait HasContour {
+
+pub trait Introspectable {
     fn contour() -> Contour;
+
+    /// The type is responsible for charting its descendants and *not* recursing
+    /// if it's already been charted.
+    fn chart<CM: ContourMap>(map: &CM);
 }
 
 pub trait ContourMap {
     /// Returns `true` if `type_id` exists and `contour` matches.
     /// Panics if `type_id` exists and `contour` doesn't match.
     fn register(&self, contour: Contour) -> bool;
-}
-
-pub trait Chartable: HasContour {
-    /// The type is responsible for charting its descendants and *not* recursing
-    /// if it's already been charted.
-    fn chart<CM: ContourMap>(map: &CM);
 }
 
 #[cfg(test)]
@@ -182,20 +179,20 @@ mod tests {
         }
     }
 
-    #[derive(Chartable, HasContour)]
+    #[derive(Introspectable)]
     struct StructTest {
         a: u32,
         b: u64,
         c: f64,
     }
 
-    #[derive(HasContour)]
+    #[derive(Introspectable)]
     struct TupleTest(u64, String, f64);
 
-    #[derive(HasContour)]
+    #[derive(Introspectable)]
     struct UnitTest;
 
-    #[derive(HasContour)]
+    #[derive(Introspectable)]
     enum EnumTest {
         A,
         B(u32, u64),
@@ -205,7 +202,7 @@ mod tests {
         },
     }
 
-    #[derive(HasContour)]
+    #[derive(Introspectable)]
     enum SecondEnum {
         Really,
         Now,
@@ -213,7 +210,7 @@ mod tests {
         Mark,
     }
 
-    #[derive(HasContour)]
+    #[derive(Introspectable)]
     struct GenericTest<A: 'static> {
         a: A,
         b: u32,
@@ -267,16 +264,16 @@ mod tests {
         StructTest::chart(&mut sm);
         assert_eq!(sm.map.len(), 4);
 
-        #[derive(Chartable, HasContour)]
+        #[derive(Introspectable)]
         struct A {
             b: B,
             c: C,
         }
-        #[derive(Chartable, HasContour)]
+        #[derive(Introspectable)]
         struct B {
             c: C,
         }
-        #[derive(Chartable, HasContour)]
+        #[derive(Introspectable)]
         struct C {
             d: u32,
             e: u64,
