@@ -19,14 +19,15 @@ use cpython::{
 
 #[derive(Introspectable)]
 struct TestStruct {
-    a: usize,
     b: usize,
     c: bool,
+    d: String,
+    e: char,
 }
 
 fn main() {
     let manager = PythonManager::new();
-    let s = TestStruct {a: 0, b: 24, c: false};
+    let s = TestStruct {b: 24, c: false, d: "oh fuck".to_owned(), e: 'f'};
     TestStruct::chart(&manager);
 
     let gil = Python::acquire_gil();

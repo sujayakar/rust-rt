@@ -73,16 +73,16 @@ pub fn introspectable(input: TokenStream) -> TokenStream {
                     }}
                 })
                 .collect();
+
             quote! {
                 impl #impl_g Introspectable for #name #ty_g #where_g {
                     fn chart<CM: ContourMap>(map: &CM) {
-                        let contour = #name #ty_g ::contour();
+                        let contour = Self::contour();
                         if map.register(contour) {
                             return;
                         }
                         #(#chart_children)*
                     }
-
                     fn contour() -> Contour {
                         Contour::Struct {
                             name: stringify!(#name),
@@ -117,7 +117,7 @@ pub fn introspectable(input: TokenStream) -> TokenStream {
             quote! {
                 impl #impl_g Introspectable for #name #ty_g #where_g {
                     fn chart<CM: ContourMap>(map: &CM) {
-                        let contour = #name #ty_g ::contour();
+                        let contour = Self::contour();
                         if map.register(contour) {
                             return;
                         }
@@ -139,7 +139,7 @@ pub fn introspectable(input: TokenStream) -> TokenStream {
             quote! {
                 impl Introspectable for #name {
                     fn chart<CM: ContourMap>(map: &CM) {
-                        let contour = #name #ty_g ::contour();
+                        let contour = Self::contour();
                         if map.register(contour) {
                             return;
                         }
@@ -272,7 +272,7 @@ pub fn introspectable(input: TokenStream) -> TokenStream {
                 }
                 impl #impl_g Introspectable for #name #ty_g #where_g {
                     fn chart<CM: ContourMap>(map: &CM) {
-                        let contour = #name #ty_g ::contour();
+                        let contour = Self::contour();
                         if map.register(contour) {
                             return;
                         }

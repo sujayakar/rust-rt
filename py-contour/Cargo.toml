@@ -6,5 +6,5 @@ authors = ["Sujay Jayakar <sujayakar@dropbox.com>"]
 [dependencies]
 contour = { path = "../contour" }
 contour-derive = { path = "../contour-derive" }
-cpython = "0.1.0"
+cpython = { path = "../rust-cpython" }
 rustyline = "1.0.0"

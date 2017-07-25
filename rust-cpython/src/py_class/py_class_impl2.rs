@@ -1794,7 +1794,7 @@ macro_rules! py_class_impl {
         }
         /* members: */ {
             $( $member_name = $member_expr; )*
-            $name = 
+            $name =
             py_argparse_parse_plist!{
                 py_class_static_method {$py, $class::$name}
                 ($($p)*)
@@ -1815,4 +1815,3 @@ macro_rules! py_class_impl {
     }};
 
 }
-

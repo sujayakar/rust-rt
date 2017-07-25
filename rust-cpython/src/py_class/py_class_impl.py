@@ -631,7 +631,8 @@ special_names = {
     '__bool__': operator('nb_nonzero' if PY2 else 'nb_bool',
         res_type='bool'),
     # Customizing attribute access
-    '__getattr__': unimplemented(),
+    '__getattr__': operator('tp_getattr',
+                            args=[Argument('key')]),
     '__getattribute__': unimplemented(),
     '__setattr__': unimplemented(),
     '__delattr__': unimplemented(),
@@ -783,4 +784,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

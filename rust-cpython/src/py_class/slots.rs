@@ -602,4 +602,3 @@ pub unsafe extern "C" fn sq_item(obj: *mut ffi::PyObject, index: ffi::Py_ssize_t
     ffi::Py_DECREF(arg);
     ret
 }
-

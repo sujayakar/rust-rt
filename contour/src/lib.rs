@@ -38,6 +38,9 @@ pub enum Contour {
     },
 }
 
+/// These types are "primitive" from contour's perspective in that they're
+/// defined elsewhere (and don't have a `#[derive(Introspectable)]`), yet we
+/// still want to be able to introspect them.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Primitive {
     u8,
@@ -54,6 +57,8 @@ pub enum Primitive {
     isize,
     bool,
     char,
+
+    String,
 }
 
 macro_rules! prim_impl {
@@ -88,6 +93,7 @@ prim_impl!(f64, f64);
 prim_impl!(isize, isize);
 prim_impl!(bool, bool);
 prim_impl!(char, char);
+prim_impl!(String, String);
 
 impl Contour {
     pub fn name(&self) -> &'static str {
@@ -211,7 +217,7 @@ mod tests {
     }
 
     #[derive(Introspectable)]
-    struct GenericTest<A: 'static> {
+    struct GenericTest<A: Introspectable + 'static> {
         a: A,
         b: u32,
     }
@@ -262,7 +268,7 @@ mod tests {
     fn test_chart() {
         let mut sm = SimpleMap {map: RefCell::new(HashMap::new())};
         StructTest::chart(&mut sm);
-        assert_eq!(sm.map.len(), 4);
+        assert_eq!(sm.map.borrow().len(), 4);
 
         #[derive(Introspectable)]
         struct A {
@@ -278,8 +284,8 @@ mod tests {
             d: u32,
             e: u64,
         }
-        let mut sm = SimpleMap {map: HashMap::new()};
+        let mut sm = SimpleMap {map: RefCell::new(HashMap::new())};
         A::chart(&mut sm);
-        assert_eq!(sm.map.len(), 5);
+        assert_eq!(sm.map.borrow().len(), 5);
     }
 }

@@ -119,6 +119,14 @@ impl PythonManager {
                 let s = format!("{}", val);
                 PyString::new(py, &s).into_object()
             },
+
+            // Python strings are immutable but Rust's aren't, so just do a copy
+            // at the boundary here.
+            Contour::Primitive { variant: Primitive::String, .. } => {
+                let val = unsafe {(ptr as *const String).as_ref().unwrap().as_str()};
+                PyString::new(py, val).into_object()
+            }
+
             _ => unimplemented!(),
         }
     }
@@ -167,6 +175,23 @@ py_class!(class Struct |py| {
         let s = format!("{}<..>", contour.name());
         Ok(PyString::new(py, &s))
     }
+
+    // def __getattr__(&self, key: PyObject) -> PyResult<PyObject> {
+    //     // let contour = self.contour(py);
+    //     // let key_pys: &PyString = key.cast_into(py)?;
+    //     // let key_s = key_pys.to_string(py)?;
+    //     // let fields = match contour {
+    //     //     &Contour::Struct {ref fields, ..} => fields,
+    //     //     _ => unimplemented!(),
+    //     // };
+    //     // for field in fields {
+    //     //     if field.name == key_s.as_ref() {
+    //     //         println!("Found match {:?}", field);
+    //     //     }
+    //     // }
+
+    //     Ok(Python::None)
+    // }
 
     def dict(&self) -> PyResult<PyDict> {
         let contour = self.contour(py);

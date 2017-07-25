@@ -17,8 +17,8 @@
 // DEALINGS IN THE SOFTWARE.
 
 mod py_class;
-#[cfg(feature="python27-sys")]
-mod py_class_impl2;
+// #[cfg(feature="python27-sys")]
+// mod py_class_impl2;
 #[cfg(feature="python3-sys")]
 mod py_class_impl3;
 #[doc(hidden)] pub mod slots;
@@ -149,4 +149,3 @@ impl BaseObject for PyObject {
         }
     }
 }
-
