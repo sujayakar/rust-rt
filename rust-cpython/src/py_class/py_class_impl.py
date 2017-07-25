@@ -551,6 +551,9 @@ def operator(special_name, slot,
     elif slot == 'tp_richcompare':
         new_slots = [(slot, 'py_class_richcompare_slot!($class::%s, $%s_type, %s, %s)'
                             % (special_name, args[0].name, res_ffi_type, res_conv))]
+    elif slot == 'tp_getattr':
+        new_slots = [(slot, 'py_class_getattr_slot!($class::%s, $%s_type, %s, %s)'
+                            % (special_name, args[0].name, res_ffi_type, res_conv))]
     elif len(args) == 0:
         new_slots = [(slot, 'py_class_unary_slot!($class::%s, %s, %s)'
                              % (special_name, res_ffi_type, res_conv))]

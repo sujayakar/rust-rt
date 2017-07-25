@@ -624,7 +624,7 @@ macro_rules! py_class_impl {
         /* slots: */ {
             /* type_slots */ [
                 $( $tp_slot_name : $tp_slot_value, )*
-                tp_getattr: py_class_binary_slot!($class::__getattr__, $key_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
+                tp_getattr: py_class_getattr_slot!($class::__getattr__, $key_type, *mut $crate::_detail::ffi::PyObject, $crate::_detail::PyObjectCallbackConverter),
             ]
             $as_number $as_sequence $as_mapping $setdelitem
         }

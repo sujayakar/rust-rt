@@ -344,6 +344,32 @@ pub fn extract_op(py: Python, op: c_int) -> PyResult<CompareOp> {
     }
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! py_class_getattr_slot {
+    ($class:ident :: $f:ident, $arg_type: ty, $res_type:ty, $conv:expr) => {{
+        unsafe extern "C" fn tp_getattr(
+            slf: *mut $crate::_detail::ffi::PyObject,
+            attr_name: *mut i8)
+            -> $res_type
+        {
+            const LOCATION: &'static str = concat!(stringify!($class), ".", stringify!($f), "()");
+            let c_name = ::std::ffi::CStr::from_ptr(attr_name);
+            let name = c_name.to_str().expect("Non ASCII method name?");
+            $crate::_detail::handle_callback(
+                LOCATION,
+                $conv,
+                |py| {
+                    let slf = $crate::PyObject::from_borrowed_ptr(py, slf).unchecked_cast_into::<$class>();
+                    let ret = slf.$f(py, name);
+                    $crate::PyDrop::release_ref(slf, py);
+                    ret
+                })
+        }
+        Some(tp_getattr)
+    }}
+}
+
 // sq_richcompare is special-cased slot
 #[macro_export]
 #[doc(hidden)]

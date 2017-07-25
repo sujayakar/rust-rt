@@ -19,12 +19,14 @@ use contour::{
 use cpython::{
     Python,
     PyDict,
+    PyErr,
     PyObject,
     PyResult,
     PyString,
     PythonObject,
     ToPyObject,
 };
+use cpython::exc::AttributeError;
 
 struct TrustMe<T>(T);
 unsafe impl<T> Send for TrustMe<T> {}
@@ -176,45 +178,32 @@ py_class!(class Struct |py| {
         Ok(PyString::new(py, &s))
     }
 
-    // def __getattr__(&self, key: PyObject) -> PyResult<PyObject> {
-    //     // let contour = self.contour(py);
-    //     // let key_pys: &PyString = key.cast_into(py)?;
-    //     // let key_s = key_pys.to_string(py)?;
-    //     // let fields = match contour {
-    //     //     &Contour::Struct {ref fields, ..} => fields,
-    //     //     _ => unimplemented!(),
-    //     // };
-    //     // for field in fields {
-    //     //     if field.name == key_s.as_ref() {
-    //     //         println!("Found match {:?}", field);
-    //     //     }
-    //     // }
-
-    //     Ok(Python::None)
-    // }
-
-    def dict(&self) -> PyResult<PyDict> {
+    def __getattr__(&self, attr_name: &str) -> PyResult<PyObject> {
         let contour = self.contour(py);
         let manager = self.manager(py);
         let generation = self.generation(py);
         let ptr = self.ptr(py);
 
-        let result = PyDict::new(py);
         let fields = match contour {
             &Contour::Struct {ref fields, ..} => fields,
             _ => unimplemented!(),
         };
         for field in fields {
-            let key = PyString::new(py, &field.name);
-            let subptr = unsafe {ptr.0.offset(field.offset as isize)};
-            let field_obj = manager.analyze(
-                py,
-                field.type_id,
-                subptr,
-                *generation,
-            );
-            result.set_item(py, key, field_obj)?;
+            if field.name == attr_name {
+                let subptr = unsafe {ptr.0.offset(field.offset as isize)};
+                let attr_obj = manager.analyze(
+                    py,
+                    field.type_id,
+                    subptr,
+                    *generation,
+                );
+                return Ok(attr_obj);
+            }
         }
-        Ok(result)
+        let msg = format!("Object {} has no attribute {}",
+                          contour.name(), attr_name);
+        let msg_obj = PyString::new(py, &msg);
+        let err = PyErr::new::<AttributeError, _>(py, (msg_obj,));
+        Err(err)
     }
 });
