@@ -1,7 +1,10 @@
 extern crate contour;
 #[macro_use] extern crate cpython;
 
-use std::any::TypeId;
+use std::any::{
+    Any,
+    TypeId,
+};
 use std::collections::HashMap;
 use std::sync::{
     Arc,
@@ -46,11 +49,20 @@ impl PythonManager {
         inner.generation += 1;
     }
 
+    pub fn superanalyze<T: Any>(&self, py: Python, t: &T) -> PyObject {
+        self.analyze(
+            py,
+            TypeId::of::<T>(),
+            t as *const _ as *const u8,
+            self.generation(),
+        )
+    }
+
     pub fn analyze(&self,
-               py: Python,
-               type_id: TypeId,
-               ptr: *const u8,
-               gen: usize)
+                   py: Python,
+                   type_id: TypeId,
+                   ptr: *const u8,
+                   gen: usize)
         -> PyObject
     {
         let inner = self.inner.lock().unwrap();
