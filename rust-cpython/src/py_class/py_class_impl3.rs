@@ -25,6 +25,7 @@
 
 #[macro_export]
 #[doc(hidden)]
+
 macro_rules! py_class_impl {
     // TT muncher macro. Results are accumulated in $info $slots $impls and $members.
 
@@ -642,10 +643,6 @@ macro_rules! py_class_impl {
             }
             $members
     }};
-
-    // { { def __getattr__ $($tail:tt)* } $( $stuff:tt )* } => {
-    //     py_error! { "__getattr__ is not supported by py_class! yet." }
-    // };
 
     { { def __getattribute__ $($tail:tt)* } $( $stuff:tt )* } => {
         py_error! { "__getattribute__ is not supported by py_class! yet." }
