@@ -27,6 +27,7 @@ pub enum Contour {
         size: usize,
         type_id: TypeId,
         variants: Vec<Variant>,
+        tag: unsafe extern "C" fn(*const u8) -> usize,
     },
 }
 
@@ -60,8 +61,6 @@ pub enum VariantFields {
 
 pub trait HasContour {
     fn contour() -> Contour;
-
-    unsafe extern "C" fn enum_variant(_self: *const u8) -> isize;
 }
 
 #[cfg(test)]
@@ -93,6 +92,14 @@ mod tests {
     }
 
     #[derive(HasContour)]
+    enum SecondEnum {
+        Really,
+        Now,
+        Question,
+        Mark,
+    }
+
+    #[derive(HasContour)]
     struct GenericTest<A: 'static> {
         a: A,
         b: u32,
@@ -104,6 +111,35 @@ mod tests {
         println!("{:#?}", TupleTest::contour());
         println!("{:#?}", UnitTest::contour());
         println!("{:#?}", EnumTest::contour());
+    }
+
+    #[test]
+    fn test_tag() {
+        let (e1v, e1t) = match EnumTest::contour() {
+            Contour::Enum { variants, tag, .. } => (variants, tag),
+            _ => panic!("Wrong variant!"),
+        };
+
+        let e1 = EnumTest::B(0, 1);
+        let e1p = &e1 as *const _ as *const u8;
+        assert_eq!(unsafe {e1t(e1p)}, 1);
+        let fields = match e1v[1].fields {
+            VariantFields::Tuple(ref v) => v.clone(),
+            _ => panic!("Really wrong variant!"),
+        };
+        assert_eq!(unsafe {*(e1p.offset(fields[0].offset as isize) as *const u32)},
+                   0u32);
+        assert_eq!(unsafe {*(e1p.offset(fields[1].offset as isize) as *const u64)},
+                   1u64);
+
+        let e2t = match SecondEnum::contour() {
+            Contour::Enum { tag, .. } => tag,
+            _ => panic!("Wrong variant!"),
+        };
+        assert_eq!(unsafe {e2t(&SecondEnum::Really as *const _ as *const u8)}, 0);
+        assert_eq!(unsafe {e2t(&SecondEnum::Now as *const _ as *const u8)}, 1);
+        assert_eq!(unsafe {e2t(&SecondEnum::Question as *const _ as *const u8)}, 2);
+        assert_eq!(unsafe {e2t(&SecondEnum::Mark as *const _ as *const u8)}, 3);
     }
 
     #[test]

@@ -3,9 +3,13 @@ extern crate proc_macro;
 extern crate syn;
 #[macro_use] extern crate quote;
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
+
 use proc_macro::TokenStream;
 use syn::{
     Body,
+    Ident,
     VariantData,
 };
 use quote::{
@@ -56,10 +60,6 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                             fields: vec![#(#fields),*],
                         }
                     }
-
-                    unsafe extern "C" fn enum_variant(_self: *const u8) -> isize {
-                        -1
-                    }
                 }
             }
         },
@@ -93,10 +93,6 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                             fields: vec![#(#fields),*],
                         }
                     }
-
-                    unsafe extern "C" fn enum_variant(_self: *const u8) -> isize {
-                        -1
-                    }
                 }
             }
         },
@@ -108,10 +104,6 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                             name: stringify!(#name),
                             type_id: ::std::any::TypeId::of::<#name>(),
                         }
-                    }
-
-                    unsafe extern "C" fn enum_variant(_self: *const u8) -> isize {
-                        -1
                     }
                 }
             }
@@ -211,19 +203,26 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                 })
                 .collect();
 
+            // Is this sufficient?
+            let mut hasher = DefaultHasher::new();
+            hasher.write(format!("{:?}", ast).as_bytes());
+            let fn_name = Ident::from(format!("gettag_{:x}", hasher.finish()));
             let enum_variants: Vec<_> = variants.iter()
                 .enumerate()
                 .map(|(i, v)| {
                     let vname = &v.ident;
                     match v.data {
-                        VariantData::Struct(..) => quote!(#name::#vname {..} => #i as isize),
-                        VariantData::Tuple(..) => quote!(#name::#vname(..) => #i as isize),
-                        VariantData::Unit => quote!(#name::#vname => #i as isize),
+                        VariantData::Struct(..) => quote!(#name::#vname {..} => #i),
+                        VariantData::Tuple(..) => quote!(#name::#vname(..) => #i),
+                        VariantData::Unit => quote!(#name::#vname => #i),
                     }
                 })
                 .collect();
-
             quote! {
+                unsafe extern "C" fn #fn_name(_self: *const u8) -> usize {
+                    let s = _self as *const #name #ty_g;
+                    match *s { #(#enum_variants),* }
+                }
                 impl #impl_g HasContour for #name #ty_g #where_g {
                     fn contour() -> Contour {
                         Contour::Enum {
@@ -231,12 +230,8 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                             size: ::std::mem::size_of::<#name>(),
                             type_id: ::std::any::TypeId::of::<#name>(),
                             variants: vec![#(#variant_fields),*],
+                            tag: #fn_name,
                         }
-                    }
-
-                    unsafe extern "C" fn enum_variant(s: *const u8) -> isize {
-                        let s = s as *const Self;
-                        match *s { #(#enum_variants),* }
                     }
                 }
             }
