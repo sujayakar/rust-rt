@@ -1,0 +1,10 @@
+[package]
+name = "py-contour"
+version = "0.1.0"
+authors = ["Sujay Jayakar <sujayakar@dropbox.com>"]
+
+[dependencies]
+contour = { path = "../contour" }
+contour-derive = { path = "../contour-derive" }
+cpython = "0.1.0"
+rustyline = "1.0.0"

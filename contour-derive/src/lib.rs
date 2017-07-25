@@ -54,7 +54,7 @@ pub fn chartable(input: TokenStream) -> TokenStream {
     };
     let gen = quote! {
         impl #impl_g Chartable for #name #ty_g #where_g {
-            fn chart<CM: ContourMap>(map: &mut CM) {
+            fn chart<CM: ContourMap>(map: &CM) {
                 let contour = #name #ty_g ::contour();
                 if map.register(contour) {
                     return;

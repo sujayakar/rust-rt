@@ -5,7 +5,7 @@ extern crate syn;
 
 use std::any::TypeId;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Contour {
     Struct {
         name: &'static str,
@@ -38,7 +38,7 @@ pub enum Contour {
     },
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Primitive {
     u8,
     u16,
@@ -70,7 +70,7 @@ macro_rules! prim_impl {
         }
 
         impl Chartable for $t {
-            fn chart<CM: ContourMap>(map: &mut CM) {
+            fn chart<CM: ContourMap>(map: &CM) {
                 map.register(Self::contour());
             }
         }
@@ -113,27 +113,27 @@ impl Contour {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructField {
     pub name: &'static str,
     pub type_id: TypeId,
     pub offset: usize,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TupleField {
     pub ix: usize,
     pub type_id: TypeId,
     pub offset: usize,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variant {
     pub name: &'static str,
     pub fields: VariantFields,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantFields {
     Struct(Vec<StructField>),
     Tuple(Vec<TupleField>),
@@ -146,13 +146,13 @@ pub trait HasContour {
 pub trait ContourMap {
     /// Returns `true` if `type_id` exists and `contour` matches.
     /// Panics if `type_id` exists and `contour` doesn't match.
-    fn register(&mut self, contour: Contour) -> bool;
+    fn register(&self, contour: Contour) -> bool;
 }
 
 pub trait Chartable: HasContour {
     /// The type is responsible for charting its descendants and *not* recursing
     /// if it's already been charted.
-    fn chart<CM: ContourMap>(map: &mut CM);
+    fn chart<CM: ContourMap>(map: &CM);
 }
 
 #[cfg(test)]
@@ -161,21 +161,23 @@ mod tests {
     use super::*;
     use std::any::TypeId;
     use std::collections::HashMap;
+    use std::cell::RefCell;
 
     struct SimpleMap {
-        map: HashMap<TypeId, Contour>,
+        map: RefCell<HashMap<TypeId, Contour>>,
     }
     impl ContourMap for SimpleMap {
-        fn register(&mut self, contour: Contour) -> bool {
+        fn register(&self, contour: Contour) -> bool {
+            let mut map = self.map.borrow_mut();
             let type_id = contour.type_id();
-            if let Some(current) = self.map.get(&type_id) {
+            if let Some(current) = map.get(&type_id) {
                 if current == &contour {
                     return true;
                 } else {
                     panic!("Contour mismatch: {:?} vs. {:?}", current, contour);
                 }
             }
-            self.map.insert(type_id, contour);
+            map.insert(type_id, contour);
             false
         }
     }
@@ -261,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_chart() {
-        let mut sm = SimpleMap {map: HashMap::new()};
+        let mut sm = SimpleMap {map: RefCell::new(HashMap::new())};
         StructTest::chart(&mut sm);
         assert_eq!(sm.map.len(), 4);
 
