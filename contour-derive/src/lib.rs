@@ -24,6 +24,48 @@ impl ToTokens for TupleField {
     }
 }
 
+#[proc_macro_derive(Chartable)]
+pub fn chartable(input: TokenStream) -> TokenStream {
+    let s = input.to_string();
+    let ast = syn::parse_derive_input(&s).unwrap();
+    let name = &ast.ident;
+    let (impl_g, ty_g, where_g) = ast.generics.split_for_impl();
+    let children = match ast.body {
+        Body::Struct(VariantData::Struct(ref fields)) => fields.iter()
+            .map(|f| {let ty = &f.ty; quote!({#ty::chart(map);})})
+            .collect(),
+        Body::Struct(VariantData::Tuple(ref fields)) => fields.iter()
+            .map(|f| {let ty = &f.ty; quote!({#ty::chart(map);})})
+            .collect(),
+        Body::Struct(VariantData::Unit) => vec![],
+        Body::Enum(ref variants) => {
+            variants.iter()
+                .flat_map(|variant| match variant.data {
+                    VariantData::Struct(ref fields) => fields.iter()
+                        .map(|f| {let ty = &f.ty; quote!({#ty::chart(map);})})
+                        .collect(),
+                    VariantData::Tuple(ref fields) => fields.iter()
+                        .map(|f| {let ty = &f.ty; quote!({#ty::chart(map);})})
+                        .collect(),
+                    VariantData::Unit => vec![],
+                })
+                .collect()
+        },
+    };
+    let gen = quote! {
+        impl #impl_g Chartable for #name #ty_g #where_g {
+            fn chart<CM: ContourMap>(map: &mut CM) {
+                let contour = #name #ty_g ::contour();
+                if map.register(contour) {
+                    return;
+                }
+                #(#children)*
+            }
+        }
+    };
+    gen.parse().unwrap()
+}
+
 #[proc_macro_derive(HasContour)]
 pub fn has_contour(input: TokenStream) -> TokenStream {
     let s = input.to_string();
@@ -130,7 +172,7 @@ pub fn has_contour(input: TokenStream) -> TokenStream {
                                         };
                                         let _base = &_bomb as *const _ as *const u8;
                                         let _us = match _bomb {
-                                            #name::#vname { ref #fname, ..} =>
+                                            #name::#vname { ref #fname, .. } =>
                                                 #fname as *const _ as *const u8,
                                             _ => panic!("Wrong variant"),
                                         };

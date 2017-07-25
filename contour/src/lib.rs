@@ -1,10 +1,11 @@
 #![cfg_attr(test, feature(offset_to))]
+#![allow(non_camel_case_types)]
 #[cfg(test)] #[macro_use] extern crate contour_derive;
 extern crate syn;
 
 use std::any::TypeId;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Contour {
     Struct {
         name: &'static str,
@@ -29,46 +30,157 @@ pub enum Contour {
         variants: Vec<Variant>,
         tag: unsafe extern "C" fn(*const u8) -> usize,
     },
+    Primitive {
+        name: &'static str,
+        type_id: TypeId,
+        size: usize,
+        variant: Primitive,
+    },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
+pub enum Primitive {
+    u8,
+    u16,
+    u32,
+    u64,
+    usize,
+    i8,
+    i16,
+    i32,
+    i64,
+    f32,
+    f64,
+    isize,
+    bool,
+    char,
+}
+
+macro_rules! prim_impl {
+    ($t:ty, $n:ident) => {
+        impl HasContour for $t {
+            fn contour() -> Contour {
+                Contour::Primitive {
+                    name: stringify!($t),
+                    type_id: ::std::any::TypeId::of::<$t>(),
+                    size: ::std::mem::size_of::<$t>(),
+                    variant: Primitive::$n,
+                }
+            }
+        }
+
+        impl Chartable for $t {
+            fn chart<CM: ContourMap>(map: &mut CM) {
+                map.register(Self::contour());
+            }
+        }
+    };
+}
+prim_impl!(u8, u8);
+prim_impl!(u16, u16);
+prim_impl!(u32, u32);
+prim_impl!(u64, u64);
+prim_impl!(usize, usize);
+prim_impl!(i8, i8);
+prim_impl!(i16, i16);
+prim_impl!(i32, i32);
+prim_impl!(i64, i64);
+prim_impl!(f32, f32);
+prim_impl!(f64, f64);
+prim_impl!(isize, isize);
+prim_impl!(bool, bool);
+prim_impl!(char, char);
+
+impl Contour {
+    pub fn name(&self) -> &'static str {
+        match *self {
+            Contour::Struct {name, ..} => name,
+            Contour::Tuple {name, ..} => name,
+            Contour::Unit {name, ..} => name,
+            Contour::Enum {name, ..} => name,
+            Contour::Primitive {name, ..} => name,
+        }
+    }
+
+    pub fn type_id(&self) -> TypeId {
+        match *self {
+            Contour::Struct {type_id, ..} => type_id,
+            Contour::Tuple {type_id, ..} => type_id,
+            Contour::Unit {type_id, ..} => type_id,
+            Contour::Enum {type_id, ..} => type_id,
+            Contour::Primitive {type_id, ..} => type_id,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct StructField {
     pub name: &'static str,
     pub type_id: TypeId,
     pub offset: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct TupleField {
     pub ix: usize,
     pub type_id: TypeId,
     pub offset: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Variant {
     pub name: &'static str,
     pub fields: VariantFields,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum VariantFields {
     Struct(Vec<StructField>),
     Tuple(Vec<TupleField>),
     Unit,
 }
-
-
 pub trait HasContour {
     fn contour() -> Contour;
+}
+
+pub trait ContourMap {
+    /// Returns `true` if `type_id` exists and `contour` matches.
+    /// Panics if `type_id` exists and `contour` doesn't match.
+    fn register(&mut self, contour: Contour) -> bool;
+}
+
+pub trait Chartable: HasContour {
+    /// The type is responsible for charting its descendants and *not* recursing
+    /// if it's already been charted.
+    fn chart<CM: ContourMap>(map: &mut CM);
 }
 
 #[cfg(test)]
 mod tests {
     #![allow(dead_code)]
     use super::*;
+    use std::any::TypeId;
+    use std::collections::HashMap;
 
-    #[derive(HasContour)]
+    struct SimpleMap {
+        map: HashMap<TypeId, Contour>,
+    }
+    impl ContourMap for SimpleMap {
+        fn register(&mut self, contour: Contour) -> bool {
+            let type_id = contour.type_id();
+            if let Some(current) = self.map.get(&type_id) {
+                if current == &contour {
+                    return true;
+                } else {
+                    panic!("Contour mismatch: {:?} vs. {:?}", current, contour);
+                }
+            }
+            self.map.insert(type_id, contour);
+            false
+        }
+    }
+
+    #[derive(Chartable, HasContour)]
     struct StructTest {
         a: u32,
         b: u64,
@@ -145,5 +257,30 @@ mod tests {
     #[test]
     fn test_generic() {
         println!("{:#?}", GenericTest::<u64>::contour());
+    }
+
+    #[test]
+    fn test_chart() {
+        let mut sm = SimpleMap {map: HashMap::new()};
+        StructTest::chart(&mut sm);
+        assert_eq!(sm.map.len(), 4);
+
+        #[derive(Chartable, HasContour)]
+        struct A {
+            b: B,
+            c: C,
+        }
+        #[derive(Chartable, HasContour)]
+        struct B {
+            c: C,
+        }
+        #[derive(Chartable, HasContour)]
+        struct C {
+            d: u32,
+            e: u64,
+        }
+        let mut sm = SimpleMap {map: HashMap::new()};
+        A::chart(&mut sm);
+        assert_eq!(sm.map.len(), 5);
     }
 }
